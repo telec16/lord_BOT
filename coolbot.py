@@ -135,7 +135,7 @@ def _add_scores(config, msgs, scores=None, imgSet=None, rektSet=None):
 
     for msg in msgs:
         #if this msg contains a picture
-        if ("attachments" in msg) and (msg["attachments"] is not None):
+        if ("attachments" in msg) and (msg["attachments"] is not None) and (len(msg["attachments"]) > 0):
             url = msg["attachments"][0]["image_url"]
             imgSet.append(url)
 
