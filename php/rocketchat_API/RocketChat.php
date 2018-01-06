@@ -2,7 +2,7 @@
 
 namespace RocketChat;
 
-include_once('./httpful.phar');
+include_once('httpful.phar');
 
 class Client{
 
