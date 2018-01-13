@@ -3,7 +3,7 @@
 #https{//rocket.chat/docs/developer-guides/rest-api/
 
 include('ids.php');
-include_once('rocketchat_API/RocketChat.php');
+include_once('./rocketchat_API/RocketChat.php');
 
 function remove($array, $obj){
 	foreach($array as $key => $value){
@@ -24,6 +24,9 @@ function _connect(){
 	$rocket->login();
     return $rocket;
 }
+function _disconnect($rocket){
+	return $rocket->logout();
+}
 
 function _retrieve_msgs($rocket, $allOfThem=False, $since=null){
     if ($allOfThem){
@@ -42,9 +45,9 @@ function _retrieve_msgs($rocket, $allOfThem=False, $since=null){
 function _print_scores($rocket, $data, $toChat=False){
 
     #Choose random avatar/name from all available images
-    $url = $data['imgs'][array_rand($data['imgs'])];
-	$exp = explode("/", $url);
-    $alias = end($exp);
+	$idex = array_rand($data['imgs']);
+    $url = $data['imgs'][$idex][0];
+    $alias = $data['imgs'][$idex][1];
 
     print("avatar: {$url} alias: {$alias}"); echo "\n</br>";
     var_dump($data); echo "\n</br>";
@@ -64,13 +67,14 @@ function _print_scores($rocket, $data, $toChat=False){
         $out = "Tableau des rekts : \n";
         foreach($rektSet as $rekts){
 			/*** Hacky stuff ***/
-			$h = intval($rekts[2]->format("H")) + TIMEZONE;
-			$m = intval($rekts[2]->format("i"));
-			$s = intval($rekts[2]->format("s"));
-			$rekts[2]->setTime($h,$m,$s);
+			$date = $rekts[2];
+			$h = intval($date->format("H")) + TIMEZONE;
+			$m = intval($date->format("i"));
+			$s = intval($date->format("s"));
+			$date->setTime($h,$m,$s);
 			/*** Hacky stuff ***/
 			
-            $out .= "{$rekts[0]} a rekt {$rekts[1]} le {$rekts[2]->format(PARSE_DATE_U)}";
+            $out .= "{$rekts[0]} a rekt {$rekts[1]} le {$date->format(PARSE_DATE_U)}";
 		}
         print ($out); echo "</br>";
         if ($toChat)
@@ -164,7 +168,17 @@ function _add_scores($msgs, $data=null){
 			and array_key_exists("image_url", $msg["attachments"][0])) //And contains an image...
 		{
             $url = $msg["attachments"][0]["image_url"];
-            $data['imgs'][] = $url;
+			if(array_key_exists("title", $msg["attachments"][0])){
+				$alias = str_replace("File Uploaded: ", "", $msg["attachments"][0]["title"]);
+			}
+			else if(array_key_exists("text", $msg["attachments"][0])){
+				$alias = $msg["attachments"][0]["text"];
+			}
+			else{
+				$exp = explode("/", $url);
+				$alias = end($exp);
+			}
+            $data['imgs'][] = [$url, $alias];
 
             $date = date_create_from_format(PARSE_DATE, $msg["ts"]);
 			if(($data['lastCheck'] == null) or ($date > $data['lastCheck']))
@@ -204,11 +218,14 @@ function coolbot_manage($sumUp = False, $toChat=True){
         $msgs = _retrieve_msgs($rocket, False, $data['lastCheck']);
         [$newThing, $data] = _add_scores($msgs, $data);
 	}
+    _save_data($data);
+	
 	if($newThing)
 		_print_scores($rocket, $data, $toChat);
 	else
 		print("Up to date");
-    _save_data($data);
+	
+	_disconnect($rocket);
 }
 
 
